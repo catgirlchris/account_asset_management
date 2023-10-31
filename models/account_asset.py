@@ -37,30 +37,6 @@ class AccountAsset(models.Model):
     _order = "date_start desc, code, name"
     _check_company_auto = True
 
-    def _get_last_depreciation_date(self):
-        """Manipulate the date for getting the correct one
-
-        Used when we define a start depreciation date.
-        """
-        '''last_depreciation_date = super(
-            AccountAssetAsset, self)._get_last_depreciation_date()'''
-        last_depreciation_date = super(
-            AccountAsset, self)._get_last_depreciation_date()
-
-        date = self.start_depreciation_date
-        if (date and (date > last_depreciation_date or
-                        not self.depreciation_line_ids)):
-            last_depreciation_date = date
-
-        _logger.info("> account.asset._get_last_depreciation_date() [ %s ]", last_depreciation_date)
-        return last_depreciation_date
-
-
-    start_depreciation_date = fields.Date(
-        string='Start Depreciation Date', readonly=True,
-        states={'draft': [('readonly', False)]},
-        help="Only needed if not the same than purchase date"
-    )
     account_move_line_ids = fields.One2many(
         comodel_name="account.move.line",
         inverse_name="asset_id",
