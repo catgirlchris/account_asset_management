@@ -44,16 +44,13 @@ class AccountAsset(models.Model):
         """
         '''last_depreciation_date = super(
             AccountAssetAsset, self)._get_last_depreciation_date()'''
-        '''last_depreciation_date = super(
-            AccountAsset, self)._get_last_depreciation_date()'''
-        last_depreciation_date = dict()
-        for asset in self:
-            last_depreciation_date[asset.id] = self.date_start
-        for asset in self:
-            date = asset.start_depreciation_date
-            if (date and (date > last_depreciation_date[asset.id] or
-                          not asset.depreciation_line_ids)):
-                last_depreciation_date[asset.id] = date
+        last_depreciation_date = super(
+            AccountAsset, self)._get_last_depreciation_date()
+
+        date = self.start_depreciation_date
+        if (date and (date > last_depreciation_date or
+                        not self.depreciation_line_ids)):
+            last_depreciation_date = date
 
         _logger.info("> account.asset._get_last_depreciation_date() [ %s ]", last_depreciation_date)
         return last_depreciation_date
@@ -871,8 +868,7 @@ class AccountAsset(models.Model):
         if the fiscal year starts in the middle of a month.
         """
         if self.prorata:
-            #depreciation_start_date = self.date_start
-            depreciation_start_date = self._get_last_depreciation_date()[self.id]
+            depreciation_start_date = self.date_start
         else:
             depreciation_start_date = fy.date_from
         return depreciation_start_date
@@ -1191,8 +1187,7 @@ class AccountAsset(models.Model):
             and not self.method_end
         ):
             return table
-        #asset_date_start = self.date_start
-        asset_date_start = self._get_last_depreciation_date()[self.id]
+        asset_date_start = self.date_start
         depreciation_start_date = self._get_depreciation_start_date(
             self._get_fy_info(asset_date_start)["record"]
         )
