@@ -14,6 +14,7 @@ from dateutil.relativedelta import relativedelta
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
 from odoo.osv import expression
+from odoo.tools import float_is_zero
 
 _logger = logging.getLogger(__name__)
 
@@ -44,13 +45,16 @@ class AccountAsset(models.Model):
         """
         '''last_depreciation_date = super(
             AccountAssetAsset, self)._get_last_depreciation_date()'''
-        last_depreciation_date = super(
-            AccountAsset, self)._get_last_depreciation_date()
-
-        date = self.start_depreciation_date
-        if (date and (date > last_depreciation_date or
-                        not self.depreciation_line_ids)):
-            last_depreciation_date = date
+        '''last_depreciation_date = super(
+            AccountAsset, self)._get_last_depreciation_date()'''
+        last_depreciation_date = dict()
+        for asset in self:
+            last_depreciation_date[asset.id] = self.date_start
+        for asset in self:
+            date = asset.start_depreciation_date
+            if (date and (date > last_depreciation_date[asset.id] or
+                          not asset.depreciation_line_ids)):
+                last_depreciation_date[asset.id] = date
 
         _logger.info("> account.asset._get_last_depreciation_date() [ %s ]", last_depreciation_date)
         return last_depreciation_date
@@ -794,6 +798,45 @@ class AccountAsset(models.Model):
                 last_line,
                 posted_lines,
             )
+
+        precision = self.env['decimal.precision'].precision_get('Account')
+        for asset in self:
+            if asset.depreciation_line_ids:
+                last_depr = asset.depreciation_line_ids[-1]
+                if not last_depr.move_id and float_is_zero(
+                        last_depr.amount, precision):
+                    last_depr.unlink()
+            #if asset.move_end_period:
+            if True:
+                # Reescribir la fecha de la depreciación
+                depr_lin_obj = self.env['account.asset.line']
+                new_depr_lines = depr_lin_obj.search(
+                    [('asset_id', '=', asset.id), ('move_id', '=', False)])
+                # En el caso de que la fecha de última amortización no sea
+                # la de compra se debe generar el cuadro al período siguiente
+                depreciation_date = fields.Date.from_string(
+                    asset._get_last_depreciation_date()[asset.id])
+                nb = 0
+                for depr_line in new_depr_lines:
+                    depr_date = fields.Date.from_string(
+                        depr_line.line_date)
+                    if asset.method_period == 12:
+                        depr_date = depr_date.replace(depr_date.year, 12, 31)
+                    else:
+                        if not asset.prorata:
+                            if depr_date.day != 1:
+                                depr_date = depreciation_date + relativedelta(
+                                    months=+ (asset.method_period * (nb + 1)))
+                            else:
+                                depr_date = depreciation_date + relativedelta(
+                                    months=+ (asset.method_period * nb))
+                            nb += 1
+                        last_month_day = calendar.monthrange(
+                            depr_date.year, depr_date.month)[1]
+                        depr_date = depr_date.replace(
+                            depr_date.year, depr_date.month, last_month_day)
+                    depr_line.line_date = fields.Date.to_string(
+                        depr_date)
         return True
 
     def _get_fy_duration(self, fy, option="days"):
